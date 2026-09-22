@@ -1,0 +1,26 @@
+# Build outputs
+target/
+**/target/
+
+# Lockfiles for libraries
+Cargo.lock
+**/Cargo.lock
+
+# Dependencies
+node_modules/
+**/node_modules/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+*Zone.Identifier
+
+# Env
+.env
+.env.*
+!.env.example

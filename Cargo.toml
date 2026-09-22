@@ -1,0 +1,73 @@
+[workspace]
+[package]
+name = "knowledge-vault"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/SuperInstance/knowledge-vault-rs"
+authors = ["SuperInstance AI Team"]
+description = "Standalone knowledge vault with vector database, embeddings, and RAG"
+
+[dependencies]
+# Async runtime
+tokio = { version = "1.40", features = ["full"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Logging
+tracing = "0.1"
+
+# Async trait
+async-trait = "0.1"
+
+# Database (SQLite)
+rusqlite = "0.32"
+
+# IDs
+uuid = { version = "1.10", features = ["v4", "serde"] }
+
+# Time
+chrono = { version = "0.4", features = ["serde"] }
+
+# File watching
+notify = "6.1"
+
+# Crypto for content hashing
+sha2 = "0.10"
+hex = "0.4"
+
+# Text processing
+unicode-segmentation = "1.11"
+
+# Regex for pattern matching
+regex = "1.11"
+
+# Futures utilities
+futures = "0.3"
+
+[dev-dependencies]
+tokio-test = "0.4"
+tempfile = "3.10"
+criterion = "0.5"
+
+[[bench]]
+name = "knowledge_bench"
+harness = false
+
+[lib]
+name = "knowledge_vault"
+path = "src/lib.rs"
+
+[[example]]
+name = "basic_usage"
+path = "examples/basic_usage.rs"
+
+[[example]]
+name = "file_watching"
+path = "examples/file_watching.rs"

@@ -1,0 +1,192 @@
+name: Security
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    # Run security audit weekly on Mondays at 00:00 UTC
+    - cron: '0 0 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+
+      - name: Run security audit
+        run: cargo audit
+        continue-on-error: false
+
+      - name: Check for advisory database updates
+        run: cargo audit --fetch
+
+  dependency-check:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: moderate
+          deny-licenses: GPL-3.0, AGPL-3.0
+
+  outdated:
+    name: Check Outdated Dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - name: Install cargo-outdated
+        run: cargo install cargo-outdated
+
+      - name: Check for outdated dependencies
+        run: cargo outdated --exit-code 1
+        continue-on-error: true
+
+      - name: Create issue if outdated found
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: 'Dependencies Outdated',
+              body: 'Security audit found outdated dependencies. Please review and update.',
+              labels: ['dependencies', 'security']
+            })
+
+  typos:
+    name: Check for Typos
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install typos
+        run: |
+          curl -LsSf https://github.com/crate-ci/typos/releases/latest/download/typos-installer.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Run typos check
+        run: typos
+
+  deny-check:
+    name: Cargo Deny Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - name: Install cargo-deny
+        run: cargo install cargo-deny
+
+      - name: Initialize cargo-deny
+        run: |
+          cat > deny.toml << 'EOF'
+          [advisories]
+          db-path = "~/.cargo/advisory-db"
+          db-urls = ["https://github.com/rustsec/advisory-db"]
+          vulnerability = "deny"
+          unmaintained = "warn"
+          yanked = "warn"
+          notice = "warn"
+
+          [licenses]
+          confidence-threshold = 0.8
+          copyleft = "warn"
+          allow = [
+              "MIT",
+              "Apache-2.0",
+              "Apache-2.0 WITH LLVM-exception",
+              "BSD-2-Clause",
+              "BSD-3-Clause",
+              "ISC",
+              "Unicode-DFS-2016"
+          ]
+
+          [bans]
+          multiple-versions = "warn"
+          wildcards = "warn"
+          highlight = "all"
+
+          [sources]
+          unknown-registry = "warn"
+          unknown-git = "warn"
+          allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+          EOF
+
+      - name: Run cargo-deny
+        run: cargo deny check
+
+  secrets-scan:
+    name: Secret Scanning
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: TruffleHog Secret Scanning
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+          extra_args: --only-verified
+
+  security-report:
+    name: Generate Security Report
+    runs-on: ubuntu-latest
+    needs: [audit, deny-check]
+    if: always()
+    steps:
+      - name: Check all security jobs
+        run: |
+          if [ "${{ needs.audit.result }}" != "success" ]; then
+            echo "::error::Security audit failed"
+            exit 1
+          fi
+
+          if [ "${{ needs.deny-check.result }}" != "success" ]; then
+            echo "::error::Deny checks failed"
+            exit 1
+          fi
+
+          echo "::notice::All security checks passed"
