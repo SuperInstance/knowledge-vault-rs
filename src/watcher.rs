@@ -201,10 +201,10 @@ impl FileWatcher {
                     if let Err(e) = notify_tx.send(event) {
                         error!("Failed to send event: {}", e);
                     }
-                },
+                }
                 Err(e) => {
                     error!("Watch error: {}", e);
-                },
+                }
             })
             .map_err(|e| KnowledgeError::WatchError(e.to_string()))?;
 
@@ -243,21 +243,21 @@ impl FileWatcher {
                             match event.kind {
                                 EventKind::Create(_) | EventKind::Modify(_) => {
                                     pending.insert(path);
-                                },
+                                }
                                 EventKind::Remove(_) => {
                                     // Remove from checksums
                                     checksums.remove(&path);
                                     // We don't send delete commands for now
                                     // as we don't have a DeleteFile command
-                                },
-                                _ => {},
+                                }
+                                _ => {}
                             }
                         }
-                    },
+                    }
                     Err(std::sync::mpsc::TryRecvError::Disconnected) => {
                         info!("Notify channel disconnected, shutting down watcher");
                         break;
-                    },
+                    }
                     Err(_) => {
                         // No events, continue
                     }
@@ -299,12 +299,15 @@ impl FileWatcher {
                                     if let Err(e) =
                                         command_tx.try_send(IndexCommand::IndexFile(path.clone()))
                                     {
-                                        error!("Failed to send index command for {:?}: {}", path, e);
+                                        error!(
+                                            "Failed to send index command for {:?}: {}",
+                                            path, e
+                                        );
                                     } else {
                                         debug!("Sent index command for changed file: {:?}", path);
                                     }
                                 }
-                            },
+                            }
                             Err(e) => {
                                 debug!("Failed to compute checksum for {:?}: {} (file may have been deleted)", path, e);
                                 // File might have been deleted, that's ok

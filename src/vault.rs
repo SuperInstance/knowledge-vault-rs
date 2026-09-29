@@ -238,9 +238,10 @@ impl KnowledgeVault {
     fn create_vss_table(&self) -> KnowledgeResult<()> {
         // Validate embedding dimensions are within reasonable bounds
         if self.embedding_dimensions == 0 || self.embedding_dimensions > 10000 {
-            return Err(KnowledgeError::InvalidFormat(
-                format!("Embedding dimensions must be between 1 and 10000, got {}", self.embedding_dimensions)
-            ));
+            return Err(KnowledgeError::InvalidFormat(format!(
+                "Embedding dimensions must be between 1 and 10000, got {}",
+                self.embedding_dimensions
+            )));
         }
 
         // Create VSS virtual table for approximate nearest neighbor search

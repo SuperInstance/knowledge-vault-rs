@@ -18,7 +18,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-use knowledge_vault::{Chunker, ChunkOptions, KnowledgeVault};
+use knowledge_vault::{ChunkOptions, Chunker, KnowledgeVault};
 
 /// Generate sample text for benchmarking
 fn generate_text(paragraphs: usize, sentences_per_paragraph: usize) -> String {
@@ -71,9 +71,7 @@ fn bench_chunking(c: &mut Criterion) {
 
         group.bench_with_input(BenchmarkId::from_parameter(size), &text, |b, text| {
             let chunker = Chunker::new();
-            b.iter(|| {
-                black_box(chunker.chunk(black_box(text)).unwrap())
-            });
+            b.iter(|| black_box(chunker.chunk(black_box(text)).unwrap()));
         });
     }
 
@@ -88,30 +86,37 @@ fn bench_chunking_options(c: &mut Criterion) {
 
     let options = vec![
         ("default", ChunkOptions::default()),
-        ("small_chunks", ChunkOptions {
-            chunk_size: 128,
-            chunk_overlap: 25,
-            min_chunk_size: 50,
-            ..Default::default()
-        }),
-        ("large_chunks", ChunkOptions {
-            chunk_size: 1024,
-            chunk_overlap: 100,
-            min_chunk_size: 200,
-            ..Default::default()
-        }),
-        ("no_overlap", ChunkOptions {
-            chunk_overlap: 0,
-            ..Default::default()
-        }),
+        (
+            "small_chunks",
+            ChunkOptions {
+                chunk_size: 128,
+                chunk_overlap: 25,
+                min_chunk_size: 50,
+                ..Default::default()
+            },
+        ),
+        (
+            "large_chunks",
+            ChunkOptions {
+                chunk_size: 1024,
+                chunk_overlap: 100,
+                min_chunk_size: 200,
+                ..Default::default()
+            },
+        ),
+        (
+            "no_overlap",
+            ChunkOptions {
+                chunk_overlap: 0,
+                ..Default::default()
+            },
+        ),
     ];
 
     for (name, opts) in options {
         group.bench_with_input(name, &opts, |b, opts| {
             let chunker = Chunker::with_options(opts.clone());
-            b.iter(|| {
-                black_box(chunker.chunk(black_box(&text)).unwrap())
-            });
+            b.iter(|| black_box(chunker.chunk(black_box(&text)).unwrap()));
         });
     }
 
@@ -127,11 +132,7 @@ fn bench_embedding_generation(c: &mut Criterion) {
     let short = "This is a short text.".to_string();
     let medium = generate_text(5, 10);
     let long = generate_text(20, 10);
-    let texts = vec![
-        ("short", &short),
-        ("medium", &medium),
-        ("long", &long),
-    ];
+    let texts = vec![("short", &short), ("medium", &medium), ("long", &long)];
 
     for (name, text) in texts {
         group.throughput(Throughput::Bytes(text.len() as u64));
@@ -166,7 +167,11 @@ fn bench_vector_search(c: &mut Criterion) {
             let query_embedding = vec![0.1f32; 384];
 
             b.iter(|| {
-                black_box(vault.search(black_box(&query_embedding), black_box(5)).unwrap())
+                black_box(
+                    vault
+                        .search(black_box(&query_embedding), black_box(5))
+                        .unwrap(),
+                )
             });
         });
     }
@@ -230,7 +235,11 @@ fn bench_search_top_k(c: &mut Criterion) {
     for k in k_values {
         group.bench_with_input(BenchmarkId::from_parameter(k), &k, |b, &k| {
             b.iter(|| {
-                black_box(vault.search(black_box(&query_embedding), black_box(k)).unwrap())
+                black_box(
+                    vault
+                        .search(black_box(&query_embedding), black_box(k))
+                        .unwrap(),
+                )
             });
         });
     }

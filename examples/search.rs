@@ -8,7 +8,7 @@
 //! the same.
 
 use knowledge_vault::embeddings::EmbeddingProvider;
-use knowledge_vault::{Chunker, PlaceholderEmbedder, KnowledgeVault};
+use knowledge_vault::{Chunker, KnowledgeVault, PlaceholderEmbedder};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -53,7 +53,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("query: {query:?}\ntop {} results:", results.len());
     for r in &results {
-        println!("  score={:.3} doc={:?} chunk={}", r.score, r.document_title, &r.chunk_id[..8]);
+        println!(
+            "  score={:.3} doc={:?} chunk={}",
+            r.score,
+            r.document_title,
+            &r.chunk_id[..8]
+        );
         let preview: String = r.content.chars().take(64).collect();
         println!("          {preview}...");
     }

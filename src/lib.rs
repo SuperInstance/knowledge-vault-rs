@@ -97,11 +97,11 @@ pub mod watcher;
 
 pub use chunker::{Chunk, ChunkOptions, Chunker};
 pub use embeddings::{
-    cosine_similarity, euclidean_distance, normalize_embedding, BatchOptions,
-    ChunkMetadata, DocType, DocumentChunker, EmbeddingPipeline, EmbeddingProvider,
-    LocalEmbedder, PlaceholderEmbedder,
+    cosine_similarity, euclidean_distance, normalize_embedding, BatchOptions, ChunkMetadata,
+    DocType, DocumentChunker, EmbeddingPipeline, EmbeddingProvider, LocalEmbedder,
+    PlaceholderEmbedder,
 };
-pub use indexer::{IndexCommand, IndexerConfig, IndexerHandle, IndexResult, DocumentIndexer};
+pub use indexer::{DocumentIndexer, IndexCommand, IndexResult, IndexerConfig, IndexerHandle};
 pub use search::{HybridSearch, SearchOptions, SearchResult, VectorSearch};
 pub use vault::{ChunkRecord, ChunkResult, Document, KnowledgeVault, VaultStats};
 pub use watcher::{FileChange, FileWatcher, WatchConfig};

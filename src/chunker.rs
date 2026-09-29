@@ -110,7 +110,8 @@ impl Chunker {
                 if self.options.chunk_overlap > 0 {
                     let overlap_text = self.get_overlap_text(&current_chunk);
                     current_chunk = overlap_text;
-                    current_start = chunks.last()
+                    current_start = chunks
+                        .last()
                         .map(|c| c.end_offset - current_chunk.len() as u64)
                         .unwrap_or(0);
                 } else {
@@ -157,7 +158,8 @@ impl Chunker {
                 if self.options.chunk_overlap > 0 {
                     let overlap_text = self.get_overlap_text(&current_chunk);
                     current_chunk = overlap_text;
-                    current_start = chunks.last()
+                    current_start = chunks
+                        .last()
                         .map(|c| c.end_offset - current_chunk.len() as u64)
                         .unwrap_or(0);
                 } else {

@@ -104,9 +104,14 @@ jobs:
         run: cargo tarpaulin --verbose --timeout 120 --out Xml
 
       - name: Upload to codecov.io
+        # fail_ci_if_error relaxed (wave-66 fix): the upload needs a
+        # CODECOV_TOKEN secret that this repo doesn't have, so hard-failing
+        # here turned a coverage *upload* into a test-matrix *failure*.
+        # Coverage stays advisory until the token is provisioned.
         uses: codecov/codecov-action@v4
         with:
-          fail_ci_if_error: true
+          fail_ci_if_error: false
+        continue-on-error: true
 
   benchmarks:
     name: Benchmarks

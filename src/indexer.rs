@@ -100,10 +100,7 @@ impl DocumentIndexer {
 
         let handle = IndexerHandle::spawn(vault, embedder, command_rx, config.clone());
 
-        let indexer = Self {
-            command_tx,
-            config,
-        };
+        let indexer = Self { command_tx, config };
 
         (indexer, handle)
     }
@@ -111,12 +108,11 @@ impl DocumentIndexer {
     /// Index a file from disk
     pub async fn index_file(&self, path: PathBuf) -> KnowledgeResult<()> {
         let cmd = IndexCommand::IndexFile(path);
-        self.command_tx
-            .send(cmd)
-            .await
-            .map_err(|_| KnowledgeError::Internal(
-                "Indexer task shut down or channel full while processing file".to_string()
-            ))?;
+        self.command_tx.send(cmd).await.map_err(|_| {
+            KnowledgeError::Internal(
+                "Indexer task shut down or channel full while processing file".to_string(),
+            )
+        })?;
         Ok(())
     }
 
@@ -135,12 +131,11 @@ impl DocumentIndexer {
             path,
         };
 
-        self.command_tx
-            .send(cmd)
-            .await
-            .map_err(|_| KnowledgeError::Internal(
-                "Indexer task shut down or channel full while indexing content".to_string()
-            ))?;
+        self.command_tx.send(cmd).await.map_err(|_| {
+            KnowledgeError::Internal(
+                "Indexer task shut down or channel full while indexing content".to_string(),
+            )
+        })?;
 
         Ok(())
     }
@@ -174,7 +169,8 @@ impl IndexerHandle {
             while let Some(cmd) = command_rx.recv().await {
                 match cmd {
                     IndexCommand::IndexFile(path) => {
-                        if let Err(e) = Self::do_index_file(&vault, &embedder, &config, &path).await {
+                        if let Err(e) = Self::do_index_file(&vault, &embedder, &config, &path).await
+                        {
                             warn!("Failed to index file {:?}: {}", path, e);
                         }
                     }
@@ -184,21 +180,36 @@ impl IndexerHandle {
                         doc_type,
                         path,
                     } => {
-                        if let Err(e) =
-                            Self::do_index_content(&vault, &embedder, &config, &content, &title, &doc_type, path.as_deref()).await
+                        if let Err(e) = Self::do_index_content(
+                            &vault,
+                            &embedder,
+                            &config,
+                            &content,
+                            &title,
+                            &doc_type,
+                            path.as_deref(),
+                        )
+                        .await
                         {
                             warn!("Failed to index content '{}': {}", title, e);
                         }
                     }
                     IndexCommand::IndexDirectory { path, extensions } => {
-                        if let Err(e) =
-                            Self::do_index_directory(&vault, &embedder, &config, &path, extensions.as_deref()).await
+                        if let Err(e) = Self::do_index_directory(
+                            &vault,
+                            &embedder,
+                            &config,
+                            &path,
+                            extensions.as_deref(),
+                        )
+                        .await
                         {
                             warn!("Failed to index directory {:?}: {}", path, e);
                         }
                     }
                     IndexCommand::Reindex(doc_id) => {
-                        if let Err(e) = Self::do_reindex(&vault, &embedder, &config, &doc_id).await {
+                        if let Err(e) = Self::do_reindex(&vault, &embedder, &config, &doc_id).await
+                        {
                             warn!("Failed to reindex {}: {}", doc_id, e);
                         }
                     }
@@ -215,10 +226,7 @@ impl IndexerHandle {
         // Create a channel for sending shutdown command
         let (shutdown_tx, _) = mpsc::channel(1);
 
-        Self {
-            task,
-            shutdown_tx,
-        }
+        Self { task, shutdown_tx }
     }
 
     /// Actually index a file (synchronous, no await points while holding lock)
@@ -244,8 +252,16 @@ impl IndexerHandle {
         let doc_type = detect_document_type(&filename);
 
         // Now do the indexing (lock held only during sync operations)
-        Self::do_index_content(vault, embedder, config, &content, &filename, doc_type, Some(path))
-            .await
+        Self::do_index_content(
+            vault,
+            embedder,
+            config,
+            &content,
+            &filename,
+            doc_type,
+            Some(path),
+        )
+        .await
     }
 
     /// Actually index content (synchronous operations while holding lock)
@@ -365,7 +381,8 @@ impl IndexerHandle {
         let mut stack = vec![dir.to_path_buf()];
 
         // Convert extensions to &str for comparison
-        let ext_strs: Option<Vec<&str>> = extensions.map(|exts| exts.iter().map(|s| s.as_str()).collect());
+        let ext_strs: Option<Vec<&str>> =
+            extensions.map(|exts| exts.iter().map(|s| s.as_str()).collect());
 
         while let Some(current) = stack.pop() {
             let mut entries = tokio::fs::read_dir(&current).await?;
@@ -449,8 +466,7 @@ impl IndexerHandle {
         let _ = self.shutdown_tx.send(IndexCommand::Shutdown).await;
 
         // Wait for task to finish (with timeout)
-        let _ = tokio::time::timeout(Duration::from_secs(5), self.task)
-            .await;
+        let _ = tokio::time::timeout(Duration::from_secs(5), self.task).await;
     }
 }
 

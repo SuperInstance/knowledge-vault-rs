@@ -10,7 +10,7 @@ use std::time::Duration;
 
 use tokio::sync::mpsc;
 
-use knowledge_vault::{IndexCommand, WatchConfig, FileWatcher};
+use knowledge_vault::{FileWatcher, IndexCommand, WatchConfig};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -34,14 +34,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut watcher = FileWatcher::with_auto_index(config, tx)?;
     watcher.start().await?;
-    println!("watching {} (existing files scanned for checksums)", tmp.display());
+    println!(
+        "watching {} (existing files scanned for checksums)",
+        tmp.display()
+    );
 
     // Touch two files: the first write indexes; the second write to the SAME
     // file inside the debounce window collapses into one command (dedup by
     // checksum happens for unchanged content).
     std::fs::write(tmp.join("hello.md"), "# Hello\n\nFirst version.")?;
     tokio::time::sleep(Duration::from_millis(50)).await;
-    std::fs::write(tmp.join("hello.md"), "# Hello\n\nSecond version with more text.")?;
+    std::fs::write(
+        tmp.join("hello.md"),
+        "# Hello\n\nSecond version with more text.",
+    )?;
     std::fs::write(tmp.join("notes.txt"), "watcher demo note")?;
 
     // Consume commands for a moment, then shut the watcher down cleanly.

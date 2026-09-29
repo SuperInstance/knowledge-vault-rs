@@ -38,11 +38,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
          The compiler checks every reference against these bounds.",
         "markdown",
     )?;
-    println!("re-added same content -> id {id_again} (deduplicated: {})", id_again == id_a);
+    println!(
+        "re-added same content -> id {id_again} (deduplicated: {})",
+        id_again == id_a
+    );
 
     // Fetch one document.
     if let Some(doc) = vault.get_document(&id_a)? {
-        println!("\nfetched: {} [{}] hash={}", doc.title, doc.doc_type, &doc.content_hash[..12]);
+        println!(
+            "\nfetched: {} [{}] hash={}",
+            doc.title,
+            doc.doc_type,
+            &doc.content_hash[..12]
+        );
         println!("  path={:?} size={}B", doc.path, doc.size_bytes);
     }
 
@@ -54,12 +62,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let stats = vault.stats()?;
-    println!("\nstats: {} docs, {} chunks, {} embeddings, db={}B",
-        stats.document_count, stats.chunk_count, stats.embedding_count, stats.database_size_bytes);
+    println!(
+        "\nstats: {} docs, {} chunks, {} embeddings, db={}B",
+        stats.document_count, stats.chunk_count, stats.embedding_count, stats.database_size_bytes
+    );
 
     // Delete one and confirm.
     vault.delete_document(&id_b)?;
-    println!("\nafter delete: {} docs remain", vault.list_documents(10)?.len());
+    println!(
+        "\nafter delete: {} docs remain",
+        vault.list_documents(10)?.len()
+    );
 
     let _ = std::fs::remove_file(&db);
     Ok(())

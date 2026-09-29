@@ -39,7 +39,10 @@ nearest sentence or paragraph boundary before finalizing a piece.";
     println!("{} chars -> {} chunks\n", text.len(), chunks.len());
 
     for c in &chunks {
-        println!("chunk #{:<3} offsets {:>4}..{:<4} ~{} tokens", c.index, c.start_offset, c.end_offset, c.token_count);
+        println!(
+            "chunk #{:<3} offsets {:>4}..{:<4} ~{} tokens",
+            c.index, c.start_offset, c.end_offset, c.token_count
+        );
         let preview: String = c.content.chars().take(72).collect();
         println!("      {preview}...");
     }
