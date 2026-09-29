@@ -28,7 +28,10 @@ tracing = "0.1"
 async-trait = "0.1"
 
 # Database (SQLite)
-rusqlite = "0.40"
+# "bundled": compile SQLite from source so Windows runners (no system
+# sqlite3.lib) link successfully. This was the last layer of the windows
+# matrix failure, visible only after the fmt/CRLF layer was fixed.
+rusqlite = { version = "0.40", features = ["bundled"] }
 
 # IDs
 uuid = { version = "1.10", features = ["v4", "serde"] }
