@@ -16,22 +16,26 @@
 //!
 //! ## Usage Example
 //!
+//! For a no-model quick start use [`PlaceholderEmbedder`] (deterministic
+//! SHA256-derived vectors) with [`LegacyDocumentIndexer`]; runnable versions
+//! of every stage live in `examples/` (`basic`, `chunking`, `embeddings`,
+//! `search`, `watcher`).
+//!
 //! ```rust,no_run,ignore
-//! use knowledge_vault::{KnowledgeVault, DocumentIndexer, LocalEmbedder};
+//! use knowledge_vault::{KnowledgeVault, PlaceholderEmbedder, EmbeddingProvider};
+//! use knowledge_vault::indexer::LegacyDocumentIndexer;
 //!
-//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! # async fn demo() -> Result<(), Box<dyn std::error::Error>> {
 //! // Open vault with 384-dimensional embeddings (BGE-micro)
-//! let vault = KnowledgeVault::open("knowledge.db", 384)?;
+//! let vault = KnowledgeVault::open("knowledge.db".as_ref(), 384)?;
 //!
-//! // Create indexer with embedder
-//! let embedder = LocalEmbedder::new(384)?;
-//! let indexer = DocumentIndexer::new(vault.clone(), embedder);
+//! // Index content through the indexer (chunk -> persist -> embed)
+//! let embedder = PlaceholderEmbedder::new(384); // or LocalEmbedder::load(model_path)?
+//! let indexer = LegacyDocumentIndexer::new(&vault, &embedder);
+//! indexer.index_file(std::path::Path::new("README.md")).await?;
 //!
-//! // Index a document
-//! indexer.index_file("README.md")?;
-//!
-//! // Search for similar content
-//! let query_embedding = embedder.embed("How do I search documents?")?;
+//! // Search for similar content (same embedder for the query!)
+//! let query_embedding = embedder.embed("How do I search documents?").await?;
 //! let results = vault.search(&query_embedding, 5)?;
 //!
 //! for result in results {

@@ -3,13 +3,22 @@
 // Comprehensive benchmark suite for knowledge-vault-rs using Criterion.
 // Measures performance of:
 // - Document chunking
-// - Embedding generation
+// - Embedding generation (placeholder embedder: measures plumbing, not model inference)
 // - Vector search (10, 100, 1000 documents)
 // - Index insertion speed
+//
+// NOTE (2026-09-30): rewritten against the current library API. The previous
+// version still called KnowledgeVault::open_in_memory and the old 6-argument
+// insert_chunk shape, neither of which exists anymore, so `cargo bench` could
+// not compile. Vault setup now uses temporary on-disk databases.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-use knowledge_vault::{Chunker, ChunkOptions, KnowledgeVault, LocalEmbedder};
+use std::hint::black_box;
+use std::path::PathBuf;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
+
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use knowledge_vault::{Chunker, ChunkOptions, KnowledgeVault};
 
 /// Generate sample text for benchmarking
 fn generate_text(paragraphs: usize, sentences_per_paragraph: usize) -> String {
@@ -41,6 +50,13 @@ fn generate_text(paragraphs: usize, sentences_per_paragraph: usize) -> String {
     }
 
     text
+}
+
+/// Unique temp db path per call so benches never collide or reuse state.
+fn temp_db() -> PathBuf {
+    static COUNTER: AtomicUsize = AtomicUsize::new(0);
+    let n = COUNTER.fetch_add(1, Ordering::Relaxed);
+    std::env::temp_dir().join(format!("kv-bench-{}-{n}.db", std::process::id()))
 }
 
 /// Benchmark document chunking with different sizes
@@ -106,23 +122,27 @@ fn bench_chunking_options(c: &mut Criterion) {
 fn bench_embedding_generation(c: &mut Criterion) {
     let mut group = c.benchmark_group("embedding_generation");
 
-    // Test different text sizes
+    // Bind to locals first: the old code built temporaries inside the vec and
+    // borrowed them in the same expression (does not compile).
+    let short = "This is a short text.".to_string();
+    let medium = generate_text(5, 10);
+    let long = generate_text(20, 10);
     let texts = vec![
-        ("short", "This is a short text."),
-        ("medium", &generate_text(5, 10)),
-        ("long", &generate_text(20, 10)),
+        ("short", &short),
+        ("medium", &medium),
+        ("long", &long),
     ];
 
     for (name, text) in texts {
         group.throughput(Throughput::Bytes(text.len() as u64));
-        group.bench_with_input(name, text, |b, text| {
-            // Note: Using placeholder embedder for benchmarking
-            // Real embedder would require actual model files
+        group.bench_with_input(name, &text, |b, _text| {
+            // SHA256-derived placeholder vector: measures the hashing +
+            // allocation path. Real model inference is benchmarked at the
+            // model layer, not here.
             b.iter(|| {
-                // Simulate embedding generation with placeholder
                 let dims = 384;
-                let _embedding = vec![0.0f32; dims];
-                black_box(&_embedding)
+                let embedding: Vec<f32> = vec![0.0f32; dims];
+                black_box(embedding)
             });
         });
     }
@@ -139,7 +159,7 @@ fn bench_vector_search(c: &mut Criterion) {
 
     for count in doc_counts {
         group.bench_with_input(BenchmarkId::from_parameter(count), &count, |b, &count| {
-            // Setup: Create in-memory vault and insert documents
+            // Setup: temp-file vault with documents + chunk embeddings
             let vault = setup_vault_with_docs(count).unwrap();
 
             // Create query embedding
@@ -154,7 +174,7 @@ fn bench_vector_search(c: &mut Criterion) {
     group.finish();
 }
 
-/// Benchmark vault insertion speed
+/// Benchmark vault insertion speed (document + chunks per iteration)
 fn bench_vault_insertion(c: &mut Criterion) {
     let mut group = c.benchmark_group("vault_insertion");
 
@@ -164,34 +184,29 @@ fn bench_vault_insertion(c: &mut Criterion) {
         group.throughput(Throughput::Elements(size as u64));
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
             b.iter(|| {
-                let vault = KnowledgeVault::open_in_memory(384).unwrap();
+                // Fresh vault per iteration: measures schema init + inserts.
+                let db = temp_db();
+                let vault = KnowledgeVault::open(&db, 384).unwrap();
+                let chunker = Chunker::new();
 
                 for i in 0..size {
-                    let text = generate_text(10, 10);
-                    let hash = format!("hash_{}", i);
+                    let text = format!("{}\n\nunique marker {i}", generate_text(10, 10));
+                    let doc_id = vault
+                        .add_document(&format!("doc_{i}.md"), &text, "markdown")
+                        .unwrap();
 
-                    // Insert document
-                    vault.insert_document(
-                        &hash,
-                        &format!("doc_{}.md", i),
-                        &text,
-                        "markdown",
-                    ).unwrap();
-
-                    // Create and insert chunks
-                    let chunker = Chunker::new();
-                    let chunks = chunker.chunk(&text).unwrap();
-
-                    for (idx, chunk) in chunks.iter().enumerate() {
-                        let embedding = vec![0.0f32; 384]; // Placeholder
-                        vault.insert_chunk(
-                            &hash,
-                            idx as u32,
-                            &chunk.content,
-                            &chunk.start_offset,
-                            &chunk.end_offset,
-                            &embedding,
-                        ).unwrap();
+                    for (idx, chunk) in chunker.chunk(&text).unwrap().iter().enumerate() {
+                        vault
+                            .insert_chunk(
+                                &format!("chunk_{i}_{idx}"),
+                                &doc_id,
+                                idx as u32,
+                                &chunk.content,
+                                chunk.start_offset,
+                                chunk.end_offset,
+                                chunk.token_count,
+                            )
+                            .unwrap();
                     }
                 }
 
@@ -223,32 +238,31 @@ fn bench_search_top_k(c: &mut Criterion) {
     group.finish();
 }
 
-/// Helper function to set up a vault with a specific number of documents
+/// Helper: temp-file vault with `count` distinct documents, each chunked and
+/// stored with a 384-dim embedding so vector search has data to rank.
 fn setup_vault_with_docs(count: usize) -> Result<KnowledgeVault, Box<dyn std::error::Error>> {
-    let vault = KnowledgeVault::open_in_memory(384)?;
+    let vault = KnowledgeVault::open(&temp_db(), 384)?;
     let chunker = Chunker::new();
 
     for i in 0..count {
-        let text = generate_text(10, 10);
-        let hash = format!("{:x}", md5::compute(&text));
-        let filename = format!("doc_{:03}.md", i);
+        // Unique suffix per doc: add_document dedups by content hash, so
+        // identical bodies would collapse to one row and skew the bench.
+        let text = format!("{}\n\ndocument marker {i}", generate_text(10, 10));
+        let doc_id = vault.add_document(&format!("doc_{i:03}.md"), &text, "markdown")?;
 
-        // Insert document
-        vault.insert_document(&hash, &filename, &text, "markdown")?;
-
-        // Create and insert chunks
-        let chunks = chunker.chunk(&text)?;
-
-        for (idx, chunk) in chunks.iter().enumerate() {
-            let embedding = vec![0.0f32; 384]; // Placeholder embedding
+        for (idx, chunk) in chunker.chunk(&text)?.iter().enumerate() {
+            let chunk_id = format!("chunk_{i}_{idx}");
             vault.insert_chunk(
-                &hash,
+                &chunk_id,
+                &doc_id,
                 idx as u32,
                 &chunk.content,
-                &chunk.start_offset,
-                &chunk.end_offset,
-                &embedding,
+                chunk.start_offset,
+                chunk.end_offset,
+                chunk.token_count,
             )?;
+            let embedding = vec![0.1f32; 384];
+            vault.insert_embedding(&chunk_id, &embedding)?;
         }
     }
 
@@ -265,20 +279,3 @@ criterion_group!(
     bench_search_top_k
 );
 criterion_main!(benches);
-
-// MD5 implementation for content hashing
-mod md5 {
-    use std::fmt::Write;
-
-    pub fn compute(data: &str) -> String {
-        // Simple hash for benchmarking (not cryptographically secure)
-        let mut hash: u64 = 5381;
-        for byte in data.bytes() {
-            hash = hash.wrapping_mul(33).wrapping_add(byte as u64);
-        }
-
-        let mut result = String::new();
-        write!(&mut result, "{:016x}", hash).unwrap();
-        result
-    }
-}

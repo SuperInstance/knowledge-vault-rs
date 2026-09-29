@@ -7,6 +7,7 @@ license = "MIT"
 repository = "https://github.com/SuperInstance/knowledge-vault-rs"
 authors = ["SuperInstance AI Team"]
 description = "Standalone knowledge vault with vector database, embeddings, and RAG"
+rust-version = "1.85"
 
 [dependencies]
 # Async runtime
@@ -18,7 +19,7 @@ serde_json = "1.0"
 
 # Error handling
 anyhow = "1.0"
-thiserror = "1.0"
+thiserror = "2.0"
 
 # Logging
 tracing = "0.1"
@@ -27,7 +28,7 @@ tracing = "0.1"
 async-trait = "0.1"
 
 # Database (SQLite)
-rusqlite = "0.32"
+rusqlite = "0.40"
 
 # IDs
 uuid = { version = "1.10", features = ["v4", "serde"] }
@@ -36,10 +37,10 @@ uuid = { version = "1.10", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 
 # File watching
-notify = "6.1"
+notify = "8.2"
 
 # Crypto for content hashing
-sha2 = "0.10"
+sha2 = "0.11"
 hex = "0.4"
 
 # Text processing
@@ -64,10 +65,29 @@ harness = false
 name = "knowledge_vault"
 path = "src/lib.rs"
 
-[[example]]
-name = "basic_usage"
-path = "examples/basic_usage.rs"
+# NOTE (2026-09-30): the previous [[example]] entries pointed at files that no
+# longer exist (examples/basic_usage.rs, examples/file_watching.rs). That stale
+# metadata broke `cargo` target resolution on main: every CI run since ~09-22
+# failed before compiling a single crate, which also turned every dependabot
+# PR red regardless of its content. The declarations below match the five
+# example files that actually exist in examples/.
 
 [[example]]
-name = "file_watching"
-path = "examples/file_watching.rs"
+name = "basic"
+path = "examples/basic.rs"
+
+[[example]]
+name = "chunking"
+path = "examples/chunking.rs"
+
+[[example]]
+name = "embeddings"
+path = "examples/embeddings.rs"
+
+[[example]]
+name = "search"
+path = "examples/search.rs"
+
+[[example]]
+name = "watcher"
+path = "examples/watcher.rs"
