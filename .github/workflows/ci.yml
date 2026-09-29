@@ -81,9 +81,15 @@ jobs:
         run: cargo check --all-targets
 
       - name: Run examples
+        # Names must match the [[example]] targets in Cargo.toml. This step
+        # used to run basic_usage/file_watching — targets that no longer
+        # existed, one of the reasons main went red (see PR #6 description).
         run: |
-          cargo run --example basic_usage
-          cargo run --example file_watching
+          cargo run --example basic
+          cargo run --example chunking
+          cargo run --example embeddings
+          cargo run --example search
+          cargo run --example watcher
 
   coverage:
     name: Code Coverage
@@ -104,9 +110,14 @@ jobs:
         run: cargo tarpaulin --verbose --timeout 120 --out Xml
 
       - name: Upload to codecov.io
+        # fail_ci_if_error relaxed (wave-66 fix): the upload needs a
+        # CODECOV_TOKEN secret that this repo doesn't have, so hard-failing
+        # here turned a coverage *upload* into a test-matrix *failure*.
+        # Coverage stays advisory until the token is provisioned.
         uses: codecov/codecov-action@v4
         with:
-          fail_ci_if_error: true
+          fail_ci_if_error: false
+        continue-on-error: true
 
   benchmarks:
     name: Benchmarks
@@ -143,7 +154,7 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: "1.75.0" # MSRV from Cargo.toml
+          toolchain: "1.85.0" # MSRV from Cargo.toml rust-version
 
       - name: Check library compiles with MSRV
         run: cargo check

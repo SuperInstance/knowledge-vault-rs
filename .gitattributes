@@ -1,0 +1,9 @@
+# Force LF everywhere: the CI fmt gate uses newline_style="Unix"; a CRLF
+# checkout (Windows runners default core.autocrlf) makes rustfmt see every
+# file as a diff. Repo-level fix beats per-runner git config.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.gif binary
+*.ico binary
+*.db binary

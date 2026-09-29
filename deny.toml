@@ -1,0 +1,48 @@
+# cargo-deny configuration
+#
+# Added 2026-09-30 during the wave-66 PR sweep. Before this file existed,
+# `cargo deny check` ran with DEFAULT config, whose licenses section allows
+# nothing — the crate's own MIT license came back "rejected: license is not
+# explicitly allowed". The security workflow has been failing on this repo
+# for that reason alone (advisories/bans/sources were already ok).
+
+[graph]
+# Check all targets so dev/bench deps are covered too.
+all-features = true
+
+[licenses]
+# Trust boundary: OSI/FSF-approved permissive licenses only. Anything outside
+# this list must be reviewed and either justified or replaced.
+version = 2
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-3.0",
+    "Zlib",
+    "CC0-1.0",
+    "CDLA-Permissive-2.0",
+]
+# If a dependency slips in under an unexpected license, fail loudly and let a
+# human decide; do not broaden this list casually.
+
+[advisories]
+version = 2
+# Real vulnerabilities fail the build. Yanked releases are denied across the
+# whole graph: a yanked crate was pulled for a reason and should not re-enter
+# the dependency tree silently. (Schema note: newer cargo-deny expects a graph
+# scope note: we PIN cargo-deny in CI (below) because the schema for this
+# key changed across cargo-deny versions; local validation uses 0.20.2.)
+yanked = "deny"
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+
+[sources]
+unknown-registry = "warn"
+unknown-git = "warn"
+allow-registry = ["https://github.com/rust/crates.io-index"]

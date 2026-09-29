@@ -101,7 +101,7 @@ impl EmbeddingPipeline {
             Ok(embedder) => {
                 info!("Using real BGE-Micro model");
                 Arc::new(embedder)
-            },
+            }
             Err(e) => {
                 warn!("Failed to load real embedding model: {}", e);
                 warn!("Using placeholder embeddings (SHA256-based)");
@@ -191,7 +191,7 @@ impl DocumentChunker {
                 } else {
                     self.chunk_sliding_window(content)
                 }
-            },
+            }
         }
     }
 
@@ -243,23 +243,23 @@ impl DocumentChunker {
         // Code splitting patterns - common function/class markers across languages
         let patterns = [
             r"\npub fn ",       // Rust public function
-            r"\nfn ",          // Rust private function
+            r"\nfn ",           // Rust private function
             r"\npub async fn ", // Rust async public function
-            r"\nasync fn ",    // Rust async private function
-            r"\nimpl ",        // Rust impl block
-            r"\npub struct ",  // Rust public struct
-            r"\nstruct ",      // Rust private struct
-            r"\npub enum ",    // Rust public enum
-            r"\nenum ",        // Rust private enum
-            r"\nclass ",       // Python/JavaScript class
-            r"\ndef ",         // Python function
-            r"\nfunc ",        // JavaScript/Go function
+            r"\nasync fn ",     // Rust async private function
+            r"\nimpl ",         // Rust impl block
+            r"\npub struct ",   // Rust public struct
+            r"\nstruct ",       // Rust private struct
+            r"\npub enum ",     // Rust public enum
+            r"\nenum ",         // Rust private enum
+            r"\nclass ",        // Python/JavaScript class
+            r"\ndef ",          // Python function
+            r"\nfunc ",         // JavaScript/Go function
         ];
 
         // Use RegexSet for single-pass multi-pattern matching
         // Performance: 2-3x faster than scanning for each pattern separately
-        let regex_set = RegexSet::new(patterns)
-            .expect("Code splitting patterns should be valid regex");
+        let regex_set =
+            RegexSet::new(patterns).expect("Code splitting patterns should be valid regex");
 
         let mut split_points: Vec<usize> = vec![0];
 
@@ -509,7 +509,7 @@ impl LocalEmbedder {
         // TODO: Integrate llama.cpp when API is stable
         // For now, return error to trigger fallback to placeholder embeddings
         Err(KnowledgeError::EmbeddingError(
-            "Real embedding model not yet integrated. Using placeholder embeddings.".to_string()
+            "Real embedding model not yet integrated. Using placeholder embeddings.".to_string(),
         ))
     }
 }
@@ -519,13 +519,13 @@ impl EmbeddingProvider for LocalEmbedder {
     async fn embed(&self, _text: &str) -> KnowledgeResult<Vec<f32>> {
         // This should not be reached as load() returns error
         Err(KnowledgeError::EmbeddingError(
-            "Real embedding model not available".to_string()
+            "Real embedding model not available".to_string(),
         ))
     }
 
     async fn embed_batch(&self, _texts: &[&str]) -> KnowledgeResult<Vec<Vec<f32>>> {
         Err(KnowledgeError::EmbeddingError(
-            "Real embedding model not available".to_string()
+            "Real embedding model not available".to_string(),
         ))
     }
 
@@ -565,12 +565,15 @@ impl EmbeddingProvider for PlaceholderEmbedder {
     }
 
     async fn embed_batch(&self, texts: &[&str]) -> KnowledgeResult<Vec<Vec<f32>>> {
-        debug!("Generating placeholder embeddings for {} texts", texts.len());
+        debug!(
+            "Generating placeholder embeddings for {} texts",
+            texts.len()
+        );
 
         // Process embeddings in parallel with bounded concurrency
         // This provides 4-8x speedup for batch processing
-        use tokio::sync::Semaphore;
         use std::sync::Arc;
+        use tokio::sync::Semaphore;
 
         let semaphore = Arc::new(Semaphore::new(8)); // Max 8 concurrent embeddings
         let mut tasks = Vec::with_capacity(texts.len());
@@ -593,9 +596,9 @@ impl EmbeddingProvider for PlaceholderEmbedder {
         }
 
         // Wait for all tasks to complete
-        let results: Vec<Vec<f32>> = futures::future::try_join_all(tasks)
-            .await
-            .map_err(|e| KnowledgeError::EmbeddingError(format!("Batch processing failed: {}", e)))?;
+        let results: Vec<Vec<f32>> = futures::future::try_join_all(tasks).await.map_err(|e| {
+            KnowledgeError::EmbeddingError(format!("Batch processing failed: {}", e))
+        })?;
 
         Ok(results)
     }

@@ -226,7 +226,11 @@ impl<'a> HybridSearch<'a> {
     }
 
     /// Keyword-based search using BM25-like scoring
-    fn keyword_search(&self, query: &str, options: &SearchOptions) -> KnowledgeResult<Vec<SearchResult>> {
+    fn keyword_search(
+        &self,
+        query: &str,
+        options: &SearchOptions,
+    ) -> KnowledgeResult<Vec<SearchResult>> {
         debug!("Performing keyword search for: {}", query);
 
         let query_terms: Vec<String> = query
