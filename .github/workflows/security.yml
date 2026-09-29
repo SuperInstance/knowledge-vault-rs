@@ -126,45 +126,23 @@ jobs:
         with:
           toolchain: stable
 
-      - name: Install cargo-deny
-        run: cargo install cargo-deny
-
-      - name: Initialize cargo-deny
-        run: |
-          cat > deny.toml << 'EOF'
-          [advisories]
-          db-path = "~/.cargo/advisory-db"
-          db-urls = ["https://github.com/rustsec/advisory-db"]
-          vulnerability = "deny"
-          unmaintained = "warn"
-          yanked = "warn"
-          notice = "warn"
-
-          [licenses]
-          confidence-threshold = 0.8
-          copyleft = "warn"
-          allow = [
-              "MIT",
-              "Apache-2.0",
-              "Apache-2.0 WITH LLVM-exception",
-              "BSD-2-Clause",
-              "BSD-3-Clause",
-              "ISC",
-              "Unicode-DFS-2016"
-          ]
-
-          [bans]
-          multiple-versions = "warn"
-          wildcards = "warn"
-          highlight = "all"
-
-          [sources]
-          unknown-registry = "warn"
-          unknown-git = "warn"
-          allow-registry = ["https://github.com/rust-lang/crates.io-index"]
-          EOF
+      - name: Install cargo-deny (pinned to 0.20.2)
+        # Pinned (wave-66): the deny.toml schema for [advisories] yanked
+        # changed across cargo-deny versions ("deny"/"warn"/"allow" ->
+        # graph scopes). Pinning CI to the same version we validate with
+        # locally makes the gate deterministic. Revisit when the config is
+        # intentionally migrated.
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny@0.20.2
 
       - name: Run cargo-deny
+        # NOTE (wave-66): a previous version of this job generated its own
+        # deny.toml inline with a v1-schema config (vulnerability/unmaintained/
+        # notice keys), silently OVERWRITING the committed deny.toml and
+        # failing against current cargo-deny. The committed deny.toml is the
+        # single config of record now — edit that file, never this workflow,
+        # to change policy.
         run: cargo deny check
 
   secrets-scan:

@@ -31,8 +31,11 @@ allow = [
 
 [advisories]
 version = 2
-# Real vulnerabilities fail the build. Yanked releases are denied: a yanked
-# crate was pulled for a reason and should not re-enter the graph silently.
+# Real vulnerabilities fail the build. Yanked releases are denied across the
+# whole graph: a yanked crate was pulled for a reason and should not re-enter
+# the dependency tree silently. (Schema note: newer cargo-deny expects a graph
+# scope note: we PIN cargo-deny in CI (below) because the schema for this
+# key changed across cargo-deny versions; local validation uses 0.20.2.)
 yanked = "deny"
 
 [bans]

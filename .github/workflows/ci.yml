@@ -81,9 +81,15 @@ jobs:
         run: cargo check --all-targets
 
       - name: Run examples
+        # Names must match the [[example]] targets in Cargo.toml. This step
+        # used to run basic_usage/file_watching — targets that no longer
+        # existed, one of the reasons main went red (see PR #6 description).
         run: |
-          cargo run --example basic_usage
-          cargo run --example file_watching
+          cargo run --example basic
+          cargo run --example chunking
+          cargo run --example embeddings
+          cargo run --example search
+          cargo run --example watcher
 
   coverage:
     name: Code Coverage
