@@ -40,7 +40,7 @@ uuid = { version = "1.10", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 
 # File watching
-notify = "8.2"
+notify = "9.0"
 
 # Crypto for content hashing
 sha2 = "0.11"
